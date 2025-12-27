@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 
 const DATA_DIR = path.join(process.cwd(), 'public', 'data');
 
-async function processZipFile(zipPath, yearLabel) {
+async function processZipFile(zipPath, yearLabel, fallbackOnetMap = null) {
   console.log(`Processing ${zipPath}...`);
 
   const zipBuffer = fs.readFileSync(zipPath);
@@ -65,7 +65,7 @@ async function processZipFile(zipPath, yearLabel) {
 
   // Map O*NET codes to titles and base SOC codes (specialty codes like 15-1243.01)
   // O*NET codes map to base SOC code for wage lookup (15-1243.01 -> 15-1243)
-  const onetMap = new Map();
+  let onetMap = new Map();
   if (onetData) {
     onetData.forEach(row => {
       const onetCode = (row.OnetCode || '').trim();
@@ -76,6 +76,12 @@ async function processZipFile(zipPath, yearLabel) {
         onetMap.set(onetCode, { title, baseSoc });
       }
     });
+  }
+
+  // Use fallback O*NET data if current year doesn't have it
+  if (onetMap.size === 0 && fallbackOnetMap) {
+    onetMap = fallbackOnetMap;
+    console.log(`  Using fallback O*NET data (${onetMap.size} codes)`);
   }
 
   console.log(`  Areas: ${areaMap.size}, Base SOC: ${socMap.size}, O*NET: ${onetMap.size}`);
@@ -176,6 +182,33 @@ async function processZipFile(zipPath, yearLabel) {
   return output;
 }
 
+// Load O*NET data from a zip file for fallback use
+async function loadOnetFromZip(zipPath) {
+  try {
+    const zipBuffer = fs.readFileSync(zipPath);
+    const zip = await JSZip.loadAsync(zipBuffer);
+    const filenames = Object.keys(zip.files);
+    const onetFile = filenames.find(f => f.toLowerCase().includes('onet_occs') && f.endsWith('.csv'));
+    if (!onetFile) return null;
+
+    const content = await zip.files[onetFile].async('string');
+    const data = parse(content, { columns: true, skip_empty_lines: true, relax_quotes: true });
+
+    const onetMap = new Map();
+    data.forEach(row => {
+      const onetCode = (row.OnetCode || '').trim();
+      const title = (row.OnetTitle || '').trim();
+      if (onetCode && title) {
+        const baseSoc = onetCode.replace(/\.\d+$/, '');
+        onetMap.set(onetCode, { title, baseSoc });
+      }
+    });
+    return onetMap.size > 0 ? onetMap : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function main() {
   // Ensure output directory exists
   if (!fs.existsSync(DATA_DIR)) {
@@ -192,6 +225,17 @@ async function main() {
     return;
   }
 
+  // Build fallback O*NET map from any zip that has it (prefer newest)
+  let fallbackOnetMap = null;
+  const sortedFiles = [...files].sort().reverse(); // Newest first
+  for (const file of sortedFiles) {
+    fallbackOnetMap = await loadOnetFromZip(path.join(process.cwd(), file));
+    if (fallbackOnetMap) {
+      console.log(`Loaded O*NET fallback from ${file} (${fallbackOnetMap.size} codes)\n`);
+      break;
+    }
+  }
+
   const manifest = { years: [] };
 
   for (const file of files) {
@@ -199,7 +243,7 @@ async function main() {
     const match = file.match(/(\d{4}-\d{2})/);
     const yearLabel = match ? match[1] : file.replace('.zip', '');
 
-    const data = await processZipFile(path.join(process.cwd(), file), yearLabel);
+    const data = await processZipFile(path.join(process.cwd(), file), yearLabel, fallbackOnetMap);
     if (data) {
       const outputFile = `wages-${yearLabel}.bin`;
       const jsonStr = JSON.stringify(data);

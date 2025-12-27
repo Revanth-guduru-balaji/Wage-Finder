@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import pako from 'pako';
 
 const WAGE_LEVELS = {
@@ -26,6 +26,22 @@ export default function App() {
   const [activeLevel, setActiveLevel] = useState(2);
   const [locationFilter, setLocationFilter] = useState('');
   const [sortBy, setSortBy] = useState('name'); // 'name' or 'wage'
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Refs
+  const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Load manifest on mount
   useEffect(() => {
@@ -96,37 +112,40 @@ export default function App() {
       return;
     }
 
-    const occupationWages = wageData.wages.filter(w => w.s === selectedOccupation.c);
-    const categorized = { 1: [], 2: [], 3: [], 4: [], 0: [] };
+    setIsSearching(true);
 
-    // Categorize each location by the highest wage level the salary qualifies for
-    // Level 1 = Entry (17th %ile), Level 2 = Qualified (34th), Level 3 = Experienced (50th), Level 4 = Fully Competent (67th)
-    // Your salary must meet or exceed the threshold to qualify at that level
-    occupationWages.forEach(w => {
-      const areaName = wageData.areas[w.a];
-      const location = { area: areaName, l1: w.l1, l2: w.l2, l3: w.l3, l4: w.l4 };
+    // Use setTimeout to allow UI to update before heavy computation
+    setTimeout(() => {
+      const occupationWages = wageData.wages.filter(w => w.s === selectedOccupation.c);
+      const categorized = { 1: [], 2: [], 3: [], 4: [], 0: [] };
 
-      // Check from highest to lowest - categorize by the HIGHEST level you qualify for
-      if (salaryNum >= w.l4) categorized[4].push(location);
-      else if (salaryNum >= w.l3) categorized[3].push(location);
-      else if (salaryNum >= w.l2) categorized[2].push(location);
-      else if (salaryNum >= w.l1) categorized[1].push(location);
-      else categorized[0].push(location); // Below Level 1
-    });
+      // Categorize each location by the highest wage level the salary qualifies for
+      occupationWages.forEach(w => {
+        const areaName = wageData.areas[w.a];
+        const location = { area: areaName, l1: w.l1, l2: w.l2, l3: w.l3, l4: w.l4 };
 
-    Object.keys(categorized).forEach(key => {
-      categorized[key].sort((a, b) => a.area.localeCompare(b.area));
-    });
+        if (salaryNum >= w.l4) categorized[4].push(location);
+        else if (salaryNum >= w.l3) categorized[3].push(location);
+        else if (salaryNum >= w.l2) categorized[2].push(location);
+        else if (salaryNum >= w.l1) categorized[1].push(location);
+        else categorized[0].push(location);
+      });
 
-    setResults({
-      salary: salaryNum,
-      occupation: selectedOccupation,
-      total: occupationWages.length,
-      levels: categorized,
-    });
-    setActiveLevel(2);
-    setLocationFilter('');
-    setError(null);
+      Object.keys(categorized).forEach(key => {
+        categorized[key].sort((a, b) => a.area.localeCompare(b.area));
+      });
+
+      setResults({
+        salary: salaryNum,
+        occupation: selectedOccupation,
+        total: occupationWages.length,
+        levels: categorized,
+      });
+      setActiveLevel(2);
+      setLocationFilter('');
+      setError(null);
+      setIsSearching(false);
+    }, 10);
   }, [selectedOccupation, salary, wageData]);
 
   // Filter and sort displayed locations
@@ -140,7 +159,8 @@ export default function App() {
     }
 
     if (sortBy === 'wage') {
-      locations = [...locations].sort((a, b) => a.l2 - b.l2);
+      const levelKey = `l${activeLevel}`;
+      locations = [...locations].sort((a, b) => a[levelKey] - b[levelKey]);
     }
 
     return locations;
@@ -183,22 +203,25 @@ export default function App() {
         <section className="search-section">
           <div className="search-row">
             <div className="field year-field">
-              <label>Year</label>
+              <label htmlFor="year-select">Year</label>
               <select
+                id="year-select"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
                 disabled={loadingData}
               >
-                {manifest?.years.sort((a, b) => b.label.localeCompare(a.label)).map(y => (
+                {manifest?.years && [...manifest.years].sort((a, b) => b.label.localeCompare(a.label)).map(y => (
                   <option key={y.label} value={y.label}>FY {y.label}</option>
                 ))}
               </select>
             </div>
 
-            <div className="field occupation-field">
-              <label>Occupation</label>
+            <div className="field occupation-field" ref={dropdownRef}>
+              <label htmlFor="occupation-search">Occupation</label>
               <div className="search-input-wrapper">
                 <input
+                  id="occupation-search"
+                  ref={searchInputRef}
                   type="text"
                   placeholder={loadingData ? 'Loading...' : 'Search job title or SOC code'}
                   value={searchQuery}
@@ -208,25 +231,64 @@ export default function App() {
                     if (!e.target.value) setSelectedOccupation(null);
                   }}
                   onFocus={() => setShowDropdown(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setShowDropdown(false);
+                    if (e.key === 'ArrowDown' && filteredOccupations.length > 0) {
+                      e.preventDefault();
+                      const firstItem = dropdownRef.current?.querySelector('.dropdown-item');
+                      firstItem?.focus();
+                    }
+                  }}
                   disabled={loadingData}
+                  aria-label="Search for occupation"
+                  autoComplete="off"
                 />
                 {selectedOccupation && (
-                  <button className="clear-btn" onClick={() => {
-                    setSelectedOccupation(null);
-                    setSearchQuery('');
-                    setResults(null);
-                  }}>&times;</button>
+                  <button
+                    className="clear-btn"
+                    onClick={() => {
+                      setSelectedOccupation(null);
+                      setSearchQuery('');
+                      setResults(null);
+                    }}
+                    aria-label="Clear selection"
+                  >&times;</button>
                 )}
                 {showDropdown && searchQuery && filteredOccupations.length > 0 && !selectedOccupation && (
-                  <div className="dropdown">
-                    {filteredOccupations.map(occ => (
+                  <div className="dropdown" role="listbox">
+                    {filteredOccupations.map((occ, idx) => (
                       <div
                         key={occ.c}
                         className="dropdown-item"
+                        role="option"
+                        tabIndex={0}
                         onClick={() => {
                           setSelectedOccupation(occ);
                           setSearchQuery(occ.t);
                           setShowDropdown(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedOccupation(occ);
+                            setSearchQuery(occ.t);
+                            setShowDropdown(false);
+                          }
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const next = e.target.nextElementSibling;
+                            next?.focus();
+                          }
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const prev = e.target.previousElementSibling;
+                            if (prev) prev.focus();
+                            else searchInputRef.current?.focus();
+                          }
+                          if (e.key === 'Escape') {
+                            setShowDropdown(false);
+                            searchInputRef.current?.focus();
+                          }
                         }}
                       >
                         <span className="title">{occ.t}</span>
@@ -239,10 +301,11 @@ export default function App() {
             </div>
 
             <div className="field salary-field">
-              <label>Annual Salary</label>
+              <label htmlFor="salary-input">Annual Salary</label>
               <div className="salary-input">
                 <span>$</span>
                 <input
+                  id="salary-input"
                   type="text"
                   placeholder="120,000"
                   value={salary}
@@ -256,9 +319,10 @@ export default function App() {
             <button
               className="search-btn"
               onClick={calculateResults}
-              disabled={!selectedOccupation || !salary || loadingData}
+              disabled={!selectedOccupation || !salary || loadingData || isSearching}
+              aria-label={isSearching ? 'Searching...' : 'Search locations'}
             >
-              Search
+              {isSearching ? 'Searching...' : 'Search'}
             </button>
           </div>
         </section>
@@ -380,7 +444,7 @@ export default function App() {
       <footer>
         <a href="https://flag.dol.gov/wage-data" target="_blank" rel="noopener noreferrer">DOL Data Source</a>
         <span>&bull;</span>
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/Revanth-guduru-balaji/Wage-Finder" target="_blank" rel="noopener noreferrer">GitHub</a>
       </footer>
     </div>
   );

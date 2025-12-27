@@ -507,29 +507,10 @@ main {
 }
 
 .location-wages {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-.location-wages .threshold {
   color: var(--text-secondary);
   font-family: monospace;
-}
-
-.location-wages .margin {
-  font-family: monospace;
-  font-weight: 500;
-  padding: 0.125rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-}
-
-.location-wages .margin.positive {
-  color: #15803d;
-  background: #dcfce7;
+  white-space: nowrap;
 }
 
 .no-results {

@@ -335,30 +335,10 @@ export default function App() {
                     <div key={i} className="location-row">
                       <span className="location-name">{loc.area}</span>
                       <span className="location-wages">
-                        {activeLevel === 1 && (
-                          <>
-                            <span className="threshold">min {formatCurrency(loc.l1)}</span>
-                            <span className="margin positive">+{formatCurrency(results.salary - loc.l1)} above</span>
-                          </>
-                        )}
-                        {activeLevel === 2 && (
-                          <>
-                            <span className="threshold">min {formatCurrency(loc.l2)}</span>
-                            <span className="margin positive">+{formatCurrency(results.salary - loc.l2)} above</span>
-                          </>
-                        )}
-                        {activeLevel === 3 && (
-                          <>
-                            <span className="threshold">min {formatCurrency(loc.l3)}</span>
-                            <span className="margin positive">+{formatCurrency(results.salary - loc.l3)} above</span>
-                          </>
-                        )}
-                        {activeLevel === 4 && (
-                          <>
-                            <span className="threshold">min {formatCurrency(loc.l4)}</span>
-                            <span className="margin positive">+{formatCurrency(results.salary - loc.l4)} above</span>
-                          </>
-                        )}
+                        {activeLevel === 1 && `${formatCurrency(loc.l1)} – ${formatCurrency(loc.l2)}`}
+                        {activeLevel === 2 && `${formatCurrency(loc.l2)} – ${formatCurrency(loc.l3)}`}
+                        {activeLevel === 3 && `${formatCurrency(loc.l3)} – ${formatCurrency(loc.l4)}`}
+                        {activeLevel === 4 && `${formatCurrency(loc.l4)}+`}
                       </span>
                     </div>
                   ))}

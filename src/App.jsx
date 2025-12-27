@@ -186,12 +186,12 @@ export default function App() {
   const formatSalaryInput = (value) => {
     const num = value.replace(/[^0-9]/g, '');
     if (!num) return '';
-    return new Intl.NumberFormat('en-US').format(parseInt(num));
+    return new Intl.NumberFormat('en-US').format(parseInt(num, 10));
   };
 
   if (loading) {
     return (
-      <div className="app loading-screen">
+      <div className="app loading-screen" role="status" aria-live="polite">
         <div className="loader"></div>
         <p>Loading...</p>
       </div>
@@ -268,7 +268,7 @@ export default function App() {
                   >&times;</button>
                 )}
                 {showDropdown && searchQuery && filteredOccupations.length > 0 && !selectedOccupation && (
-                  <div className="dropdown" role="listbox">
+                  <div className="dropdown" role="listbox" aria-labelledby="occupation-search">
                     {filteredOccupations.map((occ) => (
                       <div
                         key={occ.o || `${occ.c}|${occ.t}`}
@@ -341,7 +341,7 @@ export default function App() {
         </section>
 
         {loadingData && (
-          <div className="loading-card">
+          <div className="loading-card" role="status" aria-live="polite">
             <div className="loader"></div>
             <p>Loading FY {selectedYear} data...</p>
           </div>

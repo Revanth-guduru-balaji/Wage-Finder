@@ -12,7 +12,7 @@ Find locations where your salary qualifies as each DOL prevailing wage level. Us
 
 ## Live Demo
 
-[View the app](https://yourusername.github.io/wage-finder)
+[View the app](https://revanth-guduru-balaji.github.io/Wage-Finder/)
 
 ## Development
 

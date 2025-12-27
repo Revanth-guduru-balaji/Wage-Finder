@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://revanth-guduru-balaji.github.io/Wage-Finder/sitemap.xml

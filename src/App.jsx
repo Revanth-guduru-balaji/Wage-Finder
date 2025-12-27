@@ -377,24 +377,28 @@ export default function App() {
             <div className="results-content">
               <div className="results-toolbar">
                 <div className="filter-input">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
                   <input
+                    id="location-filter"
                     type="text"
                     placeholder="Filter locations..."
                     value={locationFilter}
                     onChange={(e) => setLocationFilter(e.target.value)}
+                    aria-label="Filter locations"
                   />
                 </div>
-                <div className="sort-options">
+                <div className="sort-options" role="group" aria-label="Sort options">
                   <button
                     className={sortBy === 'name' ? 'active' : ''}
                     onClick={() => setSortBy('name')}
+                    aria-pressed={sortBy === 'name'}
                   >A-Z</button>
                   <button
                     className={sortBy === 'wage' ? 'active' : ''}
                     onClick={() => setSortBy('wage')}
+                    aria-pressed={sortBy === 'wage'}
                   >By Wage</button>
                 </div>
                 <span className="results-count" aria-live="polite">

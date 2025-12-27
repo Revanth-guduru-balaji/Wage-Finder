@@ -578,12 +578,6 @@ main {
   color: var(--text-secondary);
 }
 
-.info-desc {
-  font-size: 0.8rem;
-  color: var(--text);
-  margin-top: 0.25rem;
-}
-
 .info-source {
   font-size: 0.8rem;
   color: var(--text-muted);

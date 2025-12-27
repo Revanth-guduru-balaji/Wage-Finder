@@ -78,10 +78,17 @@ async function processZipFile(zipPath, yearLabel, fallbackOnetMap = null) {
     });
   }
 
-  // Use fallback O*NET data if current year doesn't have it
-  if (onetMap.size === 0 && fallbackOnetMap) {
-    onetMap = fallbackOnetMap;
-    console.log(`  Using fallback O*NET data (${onetMap.size} codes)`);
+  // Merge with fallback O*NET data to include all specialty codes (like official DOL site)
+  if (fallbackOnetMap) {
+    const beforeSize = onetMap.size;
+    for (const [code, data] of fallbackOnetMap) {
+      if (!onetMap.has(code)) {
+        onetMap.set(code, data);
+      }
+    }
+    if (onetMap.size > beforeSize) {
+      console.log(`  Merged ${onetMap.size - beforeSize} additional O*NET codes from fallback`);
+    }
   }
 
   console.log(`  Areas: ${areaMap.size}, Base SOC: ${socMap.size}, O*NET: ${onetMap.size}`);
@@ -149,6 +156,10 @@ async function processZipFile(zipPath, yearLabel, fallbackOnetMap = null) {
   for (const [onetCode, { title, baseSoc }] of onetMap) {
     // Only add if the base SOC exists in wage data
     if (seenOccupations.has(baseSoc)) {
+      // Skip .00 codes if title matches base SOC (avoid duplicates like "Accountants and Auditors")
+      if (onetCode.endsWith('.00') && seenOccupations.get(baseSoc) === title) {
+        continue;
+      }
       // Use base SOC as the code (c) so wage lookup works
       // Include O*NET code in title for searchability
       allOccupations.push({
@@ -159,12 +170,13 @@ async function processZipFile(zipPath, yearLabel, fallbackOnetMap = null) {
     }
   }
 
-  // Sort by title and remove duplicates (same code + title)
+  // Sort by title and remove duplicates (use O*NET code if present, else SOC+title)
   const seen = new Set();
   const uniqueOccupations = allOccupations
     .sort((a, b) => a.t.localeCompare(b.t))
     .filter(occ => {
-      const key = `${occ.c}|${occ.t}`;
+      // Use O*NET code as unique key if present, otherwise SOC+title
+      const key = occ.o || `${occ.c}|${occ.t}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -182,7 +194,7 @@ async function processZipFile(zipPath, yearLabel, fallbackOnetMap = null) {
   return output;
 }
 
-// Load O*NET data from a zip file for fallback use
+// Load O*NET data from a zip file
 async function loadOnetFromZip(zipPath) {
   try {
     const zipBuffer = fs.readFileSync(zipPath);
@@ -225,16 +237,22 @@ async function main() {
     return;
   }
 
-  // Build fallback O*NET map from any zip that has it (prefer newest)
-  let fallbackOnetMap = null;
-  const sortedFiles = [...files].sort().reverse(); // Newest first
-  for (const file of sortedFiles) {
-    fallbackOnetMap = await loadOnetFromZip(path.join(process.cwd(), file));
-    if (fallbackOnetMap) {
-      console.log(`Loaded O*NET fallback from ${file} (${fallbackOnetMap.size} codes)\n`);
-      break;
+  // Build merged O*NET map from ALL zips (like official DOL site)
+  const mergedOnetMap = new Map();
+  for (const file of files) {
+    const onetMap = await loadOnetFromZip(path.join(process.cwd(), file));
+    if (onetMap) {
+      for (const [code, data] of onetMap) {
+        if (!mergedOnetMap.has(code)) {
+          mergedOnetMap.set(code, data);
+        }
+      }
+      console.log(`Loaded O*NET from ${file} (${onetMap.size} codes, merged total: ${mergedOnetMap.size})`);
     }
   }
+  console.log(`\nMerged O*NET database: ${mergedOnetMap.size} total codes\n`);
+
+  const fallbackOnetMap = mergedOnetMap.size > 0 ? mergedOnetMap : null;
 
   const manifest = { years: [] };
 

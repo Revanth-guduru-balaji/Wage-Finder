@@ -35,6 +35,7 @@ async function processZipFile(zipPath, yearLabel) {
   // Load lookup tables
   const geoData = await findAndParseCSV(['geography']);
   const socData = await findAndParseCSV(['oes_soc_occs', 'soc_occ']);
+  const onetData = await findAndParseCSV(['onet_occs']);
   const wageData = await findAndParseCSV(['alc_export', 'edc_export']);
 
   if (!wageData) {
@@ -52,6 +53,7 @@ async function processZipFile(zipPath, yearLabel) {
     });
   }
 
+  // Map SOC codes to titles (base codes like 15-1243)
   const socMap = new Map();
   if (socData) {
     socData.forEach(row => {
@@ -61,7 +63,22 @@ async function processZipFile(zipPath, yearLabel) {
     });
   }
 
-  console.log(`  Areas: ${areaMap.size}, Occupations: ${socMap.size}`);
+  // Map O*NET codes to titles and base SOC codes (specialty codes like 15-1243.01)
+  // O*NET codes map to base SOC code for wage lookup (15-1243.01 -> 15-1243)
+  const onetMap = new Map();
+  if (onetData) {
+    onetData.forEach(row => {
+      const onetCode = (row.OnetCode || '').trim();
+      const title = (row.OnetTitle || '').trim();
+      if (onetCode && title) {
+        // Extract base SOC code (15-1243.01 -> 15-1243)
+        const baseSoc = onetCode.replace(/\.\d+$/, '');
+        onetMap.set(onetCode, { title, baseSoc });
+      }
+    });
+  }
+
+  console.log(`  Areas: ${areaMap.size}, Base SOC: ${socMap.size}, O*NET: ${onetMap.size}`);
 
   // Process wage data
   const parseWage = (val) => {
@@ -105,7 +122,7 @@ async function processZipFile(zipPath, yearLabel) {
 
   // Convert wages to use area index instead of name (saves ~30% file size)
   const compactWages = processed.map(w => ({
-    s: w.s,           // SOC code
+    s: w.s,           // SOC code (base code like 15-1243)
     a: areaToIndex.get(w.n), // Area index (number instead of string)
     l1: w.l1,
     l2: w.l2,
@@ -113,14 +130,48 @@ async function processZipFile(zipPath, yearLabel) {
     l4: w.l4,
   }));
 
+  // Build occupations list with both base SOC and O*NET specialty codes
+  // O*NET codes (like 15-1243.01) map to base SOC (15-1243) for wage lookup
+  const allOccupations = [];
+
+  // Add base SOC codes
+  for (const [code, title] of seenOccupations) {
+    allOccupations.push({ c: code, t: title });
+  }
+
+  // Add O*NET specialty codes (map to base SOC for wage lookup)
+  for (const [onetCode, { title, baseSoc }] of onetMap) {
+    // Only add if the base SOC exists in wage data
+    if (seenOccupations.has(baseSoc)) {
+      // Use base SOC as the code (c) so wage lookup works
+      // Include O*NET code in title for searchability
+      allOccupations.push({
+        c: baseSoc,  // Use base SOC for wage lookup
+        t: title,    // O*NET title (e.g., "Data Warehousing Specialists")
+        o: onetCode  // O*NET code for display (e.g., "15-1243.01")
+      });
+    }
+  }
+
+  // Sort by title and remove duplicates (same code + title)
+  const seen = new Set();
+  const uniqueOccupations = allOccupations
+    .sort((a, b) => a.t.localeCompare(b.t))
+    .filter(occ => {
+      const key = `${occ.c}|${occ.t}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
   const output = {
     year: yearLabel,
-    occupations: Array.from(seenOccupations.entries()).map(([code, title]) => ({ c: code, t: title })).sort((a, b) => a.t.localeCompare(b.t)),
+    occupations: uniqueOccupations,
     areas: areasArray,
     wages: compactWages,
   };
 
-  console.log(`  Processed: ${compactWages.length} wage records, ${output.occupations.length} occupations, ${output.areas.length} areas`);
+  console.log(`  Processed: ${compactWages.length} wage records, ${uniqueOccupations.length} occupations, ${output.areas.length} areas`);
 
   return output;
 }

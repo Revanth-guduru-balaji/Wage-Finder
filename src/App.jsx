@@ -93,12 +93,16 @@ export default function App() {
       });
   }, [selectedYear, manifest]);
 
-  // Filter occupations based on search
+  // Filter occupations based on search (searches title, SOC code, and O*NET code)
   const filteredOccupations = useMemo(() => {
     if (!wageData || !searchQuery) return [];
     const query = searchQuery.toLowerCase();
     return wageData.occupations
-      .filter(occ => occ.c.toLowerCase().includes(query) || occ.t.toLowerCase().includes(query))
+      .filter(occ =>
+        occ.c.toLowerCase().includes(query) ||
+        occ.t.toLowerCase().includes(query) ||
+        (occ.o && occ.o.toLowerCase().includes(query))
+      )
       .slice(0, 50);
   }, [wageData, searchQuery]);
 
@@ -292,7 +296,7 @@ export default function App() {
                         }}
                       >
                         <span className="title">{occ.t}</span>
-                        <span className="code">{occ.c}</span>
+                        <span className="code">{occ.o || occ.c}</span>
                       </div>
                     ))}
                   </div>

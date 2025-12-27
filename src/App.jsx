@@ -71,26 +71,35 @@ export default function App() {
     const yearData = manifest.years.find(y => y.label === selectedYear);
     if (!yearData) return;
 
+    const abortController = new AbortController();
+
     setLoadingData(true);
     setResults(null);
     setSelectedOccupation(null);
     setSearchQuery('');
 
-    fetch(`./data/${yearData.file}`)
+    fetch(`./data/${yearData.file}`, { signal: abortController.signal })
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.arrayBuffer();
       })
       .then(buffer => {
-        const decompressed = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
-        const data = JSON.parse(decompressed);
-        setWageData(data);
+        try {
+          const decompressed = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+          const data = JSON.parse(decompressed);
+          setWageData(data);
+        } catch (parseErr) {
+          throw new Error(`Data parsing failed: ${parseErr.message}`);
+        }
         setLoadingData(false);
       })
       .catch(err => {
+        if (err.name === 'AbortError') return; // Ignore aborted fetches
         setError(`Failed to load wage data: ${err.message}`);
         setLoadingData(false);
       });
+
+    return () => abortController.abort();
   }, [selectedYear, manifest]);
 
   // Filter occupations based on search (searches title, SOC code, and O*NET code)
@@ -198,9 +207,9 @@ export default function App() {
 
       <main>
         {error && (
-          <div className="error-banner">
+          <div className="error-banner" role="alert">
             <span>{error}</span>
-            <button onClick={() => setError(null)}>&times;</button>
+            <button onClick={() => setError(null)} aria-label="Dismiss error">&times;</button>
           </div>
         )}
 
@@ -260,9 +269,9 @@ export default function App() {
                 )}
                 {showDropdown && searchQuery && filteredOccupations.length > 0 && !selectedOccupation && (
                   <div className="dropdown" role="listbox">
-                    {filteredOccupations.map((occ, idx) => (
+                    {filteredOccupations.map((occ) => (
                       <div
-                        key={occ.c}
+                        key={occ.o || `${occ.c}|${occ.t}`}
                         className="dropdown-item"
                         role="option"
                         tabIndex={0}
@@ -314,7 +323,7 @@ export default function App() {
                   placeholder="120,000"
                   value={salary}
                   onChange={(e) => setSalary(formatSalaryInput(e.target.value))}
-                  onKeyDown={(e) => e.key === 'Enter' && calculateResults()}
+                  onKeyDown={(e) => e.key === 'Enter' && selectedOccupation && salary && calculateResults()}
                   disabled={loadingData}
                 />
               </div>
@@ -345,10 +354,12 @@ export default function App() {
                 <h2>{results.occupation.t}</h2>
                 <p>{formatCurrency(results.salary)} annual salary &bull; {results.total} locations analyzed</p>
               </div>
-              <div className="level-tabs">
+              <div className="level-tabs" role="tablist" aria-label="Wage level filters">
                 {[1, 2, 3, 4].map(level => (
                   <button
                     key={level}
+                    role="tab"
+                    aria-selected={activeLevel === level}
                     className={`level-tab ${activeLevel === level ? 'active' : ''}`}
                     style={{
                       '--tab-color': WAGE_LEVELS[level].color,
@@ -386,8 +397,8 @@ export default function App() {
                     onClick={() => setSortBy('wage')}
                   >By Wage</button>
                 </div>
-                <span className="results-count">
-                  {displayedLocations.length} of {results.levels[activeLevel].length}
+                <span className="results-count" aria-live="polite">
+                  {displayedLocations.length} of {results.levels[activeLevel].length} locations
                 </span>
               </div>
 
@@ -399,8 +410,8 @@ export default function App() {
                 </div>
               ) : (
                 <div className="locations-list">
-                  {displayedLocations.map((loc, i) => (
-                    <div key={i} className="location-row">
+                  {displayedLocations.map((loc) => (
+                    <div key={loc.area} className="location-row">
                       <span className="location-name">{loc.area}</span>
                       <span className="location-wages">
                         {activeLevel === 1 && `${formatCurrency(loc.l1)} – ${formatCurrency(loc.l2)}`}

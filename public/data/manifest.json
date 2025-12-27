@@ -1,0 +1,16 @@
+{
+  "years": [
+    {
+      "label": "2023-24",
+      "file": "wages-2023-24.bin"
+    },
+    {
+      "label": "2024-25",
+      "file": "wages-2024-25.bin"
+    },
+    {
+      "label": "2025-26",
+      "file": "wages-2025-26.bin"
+    }
+  ]
+}

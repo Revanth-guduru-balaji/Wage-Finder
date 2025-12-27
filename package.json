@@ -1,0 +1,28 @@
+{
+  "name": "dol-wage-finder",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "homepage": "https://yourusername.github.io/wage-finder",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "preprocess": "node scripts/preprocess-data.js",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {
+    "pako": "^2.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "csv-parse": "^5.5.3",
+    "gh-pages": "^6.1.1",
+    "jszip": "^3.10.1",
+    "vite": "^5.0.8"
+  }
+}

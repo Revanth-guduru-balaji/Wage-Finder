@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import pako from 'pako';
 
 const WAGE_LEVELS = {
-  1: { label: 'Level 1', percentile: '17th', desc: 'Entry Level', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
-  2: { label: 'Level 2', percentile: '34th', desc: 'Qualified', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
-  3: { label: 'Level 3', percentile: '50th', desc: 'Experienced', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
-  4: { label: 'Level 4', percentile: '67th', desc: 'Fully Competent', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' },
+  1: { label: 'Level 1', percentile: '17th', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  2: { label: 'Level 2', percentile: '34th', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
+  3: { label: 'Level 3', percentile: '50th', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
+  4: { label: 'Level 4', percentile: '67th', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' },
 };
 
 export default function App() {
@@ -445,7 +445,6 @@ export default function App() {
                 >
                   <div className="info-level">{WAGE_LEVELS[level].label}</div>
                   <div className="info-percentile">{WAGE_LEVELS[level].percentile} percentile</div>
-                  <div className="info-desc">{WAGE_LEVELS[level].desc}</div>
                 </div>
               ))}
             </div>

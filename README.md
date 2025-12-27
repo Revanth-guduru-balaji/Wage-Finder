@@ -2,6 +2,8 @@
 
 Find locations where your salary qualifies as each DOL prevailing wage level. Useful for H-1B, PERM, and immigration wage planning.
 
+![Prevailing Wage Finder Screenshot](wage-example.png)
+
 ## Features
 
 - Search by occupation (SOC code or job title)

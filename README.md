@@ -54,3 +54,4 @@ Prevailing wage data from the [DOL Office of Foreign Labor Certification (OFLC)]
 ## License
 
 MIT
+

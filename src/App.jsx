@@ -189,6 +189,12 @@ export default function App() {
     return new Intl.NumberFormat('en-US').format(parseInt(num, 10));
   };
 
+  // Memoize sorted years to avoid re-sorting on every render
+  const sortedYears = useMemo(() => {
+    if (!manifest?.years) return [];
+    return [...manifest.years].sort((a, b) => b.label.localeCompare(a.label));
+  }, [manifest]);
+
   if (loading) {
     return (
       <div className="app loading-screen" role="status" aria-live="polite">
@@ -223,7 +229,7 @@ export default function App() {
                 onChange={(e) => setSelectedYear(e.target.value)}
                 disabled={loadingData}
               >
-                {manifest?.years && [...manifest.years].sort((a, b) => b.label.localeCompare(a.label)).map(y => (
+                {sortedYears.map(y => (
                   <option key={y.label} value={y.label}>FY {y.label}</option>
                 ))}
               </select>

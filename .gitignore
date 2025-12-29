@@ -26,4 +26,4 @@ npm-debug.log*
 # Source OFLC zip files (large, not needed in repo)
 OFLC_Wages_*.zip
 OFLC_Wages_*/
-.claude/
+

@@ -41,13 +41,12 @@ npm run preview
 
 ## Deployment to GitHub Pages
 
-1. Update `homepage` in `package.json` with your GitHub username and repo name
-2. Run `npm run deploy`
+Deployment is automated with GitHub Actions. Every push to `main` builds the app and publishes it to GitHub Pages via `.github/workflows/deploy.yml`.
 
-Or manually:
+To set this up on a fork:
 
-1. Run `npm run build`
-2. Push the `dist` folder contents to your `gh-pages` branch
+1. In the repository settings, under **Pages**, set the source to **GitHub Actions**
+2. Push to `main` (or trigger the workflow manually from the Actions tab)
 
 ## Data Source
 
